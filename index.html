@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二者面談 日程調整・計画表作成ツール</title>
+<style id="pageStyle">@page{size:A4 portrait;margin:12mm}</style>
+<style id="customThemeStyle">
+:root{
+  --ink:#1c2538; --navy:#1d2d50; --navy-2:#2b4170; --indigo:#2d5bb8; --indigo-d:#234a99;
+  --bg:#e9edf3; --panel:#fff; --line:#94a3b8; --line-2:#e5e9f1; --muted:#667085;
+  --amber:#e8a317; --red:#c0392b; --green:#1f7a4d; --hl:#fde68a;
+  
+  --print-text-color: #000000;
+  --print-border-color: #000000;
+  --print-border-width: 1px;
+  --table-header-bg: #27396a;
+  --table-header-color: #ffffff;
+}
+</style>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:13px/1.55 "Yu Gothic UI","Hiragino Kaku Gothic ProN","Meiryo",system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+
+/* ヘッダー */
+.appbar{background:var(--navy);color:#fff;border-bottom:3px solid var(--amber)}
+.appbar-in{max-width:1560px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:18px}
+.appbar h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.06em}
+.appbar .sub{font-size:11.5px;color:#b8c4de}
+.appbar .priv{margin-left:auto;font-size:11.5px;color:#d7e0f3;border:1px solid rgba(255,255,255,.28);border-radius:4px;padding:3px 10px}
+
+.wrap{max-width:1560px;margin:0 auto;padding:16px 22px 48px}
+
+/* ツールバー */
+.toolbar{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 4px 10px 14px;display:flex;flex-wrap:wrap;row-gap:10px}
+.tg{padding:0 16px 0 0;margin-right:16px;border-right:1px solid var(--line-2);display:flex;flex-direction:column;gap:5px}
+.tg:last-child{border-right:0;margin-right:0}
+.tg-cap{font-size:11px;color:var(--muted);font-weight:600}
+.tg-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-height:32px}
+.btn{border:1px solid #bcc6d8;background:#fff;border-radius:4px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1.3}
+.btn:hover:not(:disabled){background:#f1f5fb;border-color:#8fa0c0}
+.btn:disabled{opacity:.42;cursor:default}
+.btn.primary{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--indigo-d);border-color:var(--indigo-d)}
+.btn.sm{padding:4px 9px;font-size:12px}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:12.5px;user-select:none}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch .trk{width:36px;height:20px;border-radius:10px;background:#b4bdcf;position:relative;transition:background .15s}
+.switch .trk::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.switch input:checked+.trk{background:var(--amber)}
+.switch input:checked+.trk::after{left:18px}
+.switch input:focus-visible+.trk{outline:2px solid var(--indigo);outline-offset:2px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;cursor:pointer}
+.field{border:1px solid #bcc6d8;border-radius:4px;padding:5px 9px;background:#fff;font-size:12.5px}
+.field.num{width:64px;text-align:right}
+#q{width:210px}
+
+/* ステータスバー */
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.chip{background:#fff;border:1px solid var(--line);border-radius:4px;padding:3px 11px;font-size:12px;color:#3c475c}
+.chip b{font-size:14px;margin-left:5px;color:var(--ink)}
+.chip.warn{border-color:#f0b4ac;background:#fdf1ef;color:#8d2a1f}.chip.warn b{color:var(--red)}
+.chip.amber{border-color:#efd08a;background:#fff8e6;color:#7a5a08}
+.chip.info{border-color:#b9c9ea;background:#eef3fc;color:#254a93}
+.hint{margin:10px 0 0;padding:7px 12px;border-left:4px solid var(--indigo);background:#fff;border-radius:0 4px 4px 0;font-size:12.5px;color:#3c475c}
+
+/* メインレイアウト */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;margin-top:12px;align-items:start}
+@media (max-width:1180px){.main{grid-template-columns:1fr}}
+@media (min-width:1181px){.side{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto;padding-right:2px}}
+.stage{background:#d9dfea;border:1px solid var(--line);border-radius:6px;padding:20px;overflow:auto;display:flex;justify-content:center;align-items:flex-start;}
+
+/* 用紙設定（縮尺対応・横向き中央配置対応） */
+.sheet{background:#fff;width:210mm;min-height:297mm;padding:16mm 15mm 14mm;box-shadow:0 3px 18px rgba(20,32,64,.22);color:var(--print-text-color);
+  font-family:"Yu Gothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;transform-origin: top center;transition:transform 0.1s;margin:0 auto;}
+.sheet.landscape{width:297mm;min-height:210mm;padding:12mm 12mm 10mm;}
+.p-top{display:flex;justify-content:space-between;align-items:flex-start;font-size:11pt;margin-bottom:5mm;gap:10mm}
+.p-right{text-align:right}
+.p-title{text-align:center;font-family:"Yu Mincho","Hiragino Mincho ProN","MS PMincho",serif;font-size:18pt;font-weight:700;letter-spacing:.14em;margin:4mm 0 6mm}
+.p-intro{font-size:10.5pt;line-height:1.85;white-space:pre-wrap;margin-bottom:5mm}
+.p-notes{font-size:10pt;line-height:1.75;white-space:pre-wrap;margin-top:5mm}
+[contenteditable]{min-height:1.2em;border-radius:3px;outline:none}
+@media screen{
+  [contenteditable]:hover{background:#f3f7ff;box-shadow:0 0 0 1px #c3d1ee}
+  [contenteditable]:focus{background:#eef4ff;box-shadow:0 0 0 2px var(--indigo)}
+  [contenteditable]:empty::before{content:attr(data-ph);color:#a3adc0}
+}
+
+/* スケジュール表 */
+table.sched{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sched th,.sched td{border:var(--print-border-width) solid var(--print-border-color);text-align:center;vertical-align:middle;padding:0;color:var(--print-text-color)}
+.sched td{height:11.5mm;transition:background .08s;position:relative}
+.sheet.landscape table.sched{font-size:9.5pt;}
+.sheet.landscape .sched td{height:8.5mm;}
+.sched thead th{background:var(--table-header-bg);color:var(--table-header-color);font-weight:600;padding:5px 2px;line-height:1.35}
+.sched thead th .wk{font-size:.85em;font-weight:500;opacity:.9}
+.sched th.rowh,.sched th.corner{background:#eef1f7;color:#1c2538;font-weight:600;white-space:nowrap;width:30mm;padding:0 4px}
+.sched th.corner{background:#dfe5f0}
+.sched td.blocked{background:repeating-linear-gradient(135deg,#eceff4 0 6px,#e1e6ee 6px 12px);color:#8b95a8;font-size:.82em}
+.sched td.dup{background:#fdecea}
+.sched td.sel{outline:3px solid var(--amber);outline-offset:-3px;background:#fff4d2}
+.sched td.dropover{outline:2px dashed var(--indigo);outline-offset:-2px;background:#e8f0ff}
+.sched td.hintng{background-image:repeating-linear-gradient(45deg,rgba(192,57,43,.14) 0 5px,transparent 5px 10px)}
+.p-only{display:none}
+
+.nm{
+  display:block;padding:2px 4px;margin:1px;line-height:1.4;cursor:grab;user-select:none;
+  color:var(--print-text-color);background:transparent;border:none;border-radius:2px;
+}
+.nm:hover{background:#e6eeff}
+.nm.hl{background:var(--hl) !important;font-weight:700}
+.nm.pick{outline:2px solid var(--indigo);background:#eef3fc}
+.nm.dragging{opacity:.4}
+@media screen{.nm.ngmark::after{content:"NG";font-size:9px;font-weight:700;color:#fff;background:var(--red);border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px}}
+
+/* 氏名エディットモード */
+body.edit-mode .sched td{outline:1px dashed #a5b4fc;}
+body.edit-mode .nm{
+  background:#fef08a;border:1px dashed #d97706;box-shadow:1px 1px 3px rgba(0,0,0,0.15);
+  margin:2px 3px;padding:3px 6px;border-radius:3px;cursor:text;font-weight:bold;
+}
+
+/* サイドパネル & 兄弟リスト */
+.side{display:flex;flex-direction:column;gap:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.card h3{margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid var(--line-2);font-size:13px;display:flex;justify-content:space-between;align-items:baseline}
+.card h3 .cnt{font-size:12px;font-weight:700;color:var(--red)}
+.note{margin:8px 0 0;font-size:11.5px;color:var(--muted)}
+.empty{color:#98a2b6;font-size:12px;margin:0}
+.detail dl{margin:0;display:grid;grid-template-columns:5.2em 1fr;gap:3px 8px;font-size:12px}
+.detail dt{color:var(--muted)}.detail dd{margin:0;word-break:break-all}
+.detail .dname{font-size:15px;font-weight:700;margin-bottom:6px}
+.zone{border:1.5px dashed #cfa39d;background:#fdf6f5;border-radius:5px;padding:6px;min-height:56px}
+.zone.dropover{background:#ffeceb;border-color:var(--red)}
+.zone ul,.sib{list-style:none;margin:0;padding:0}
+.zone li{margin:2px 0}
+.zone .nm{background:#fff;border:1px solid #e6c5c0;margin:2px 0;padding:4px 9px}
+.sib li{border:1px solid var(--line);border-radius:4px;padding:6px 9px;margin-bottom:6px;cursor:pointer;font-size:12px;transition:background-color 0.2s;}
+.sib li:hover{background:#f4f7fd}
+.sib li.on{background:var(--hl);border-color:#d6b13a;font-weight:600}
+.sib small{display:block;color:var(--muted);font-weight:400;margin-top:1px}
+.set-grid{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;font-size:12.5px}
+
+/* ダイアログ */
+.overlay{position:fixed;inset:0;background:rgba(18,26,46,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:8px;width:min(94vw,500px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.modal.wide{width:min(96vw,1040px)}
+.modal header{padding:14px 18px 10px;font-size:15px;font-weight:700;border-bottom:1px solid var(--line-2)}
+.modal .body{padding:14px 18px;overflow:auto;font-size:13px}
+.modal footer{padding:12px 18px;border-top:1px solid var(--line-2);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.modal ul.warn{margin:0 0 10px;padding-left:1.2em}.modal ul.warn li{margin:3px 0}
+.minitbl{border-collapse:collapse;font-size:11.5px;width:100%}
+.minitbl th,.minitbl td{border:1px solid #b9c3d6;padding:3px 4px;text-align:center}
+.minitbl th{background:#e9eef7;font-weight:600}
+.minitbl td.slot{cursor:pointer;height:30px}
+.minitbl td.slot:hover{background:#dce8ff}
+.minitbl td.base,.minitbl td.base:hover{background:#ffd777;font-weight:700}
+.minitbl td.after{background:#fff1c6}
+.minitbl td.blk{background:#e6e9ef;color:#98a2b6;cursor:not-allowed}
+
+#toasts{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;align-items:center}
+.toast{background:var(--navy);color:#fff;padding:9px 18px;border-radius:5px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);max-width:80vw}
+.toast.warn{background:#8a5a00}.toast.err{background:#9b2b20}
+#dropOv{position:fixed;inset:0;background:rgba(29,45,80,.78);color:#fff;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;z-index:300;letter-spacing:.08em}
+#dropOv.show{display:flex}
+.s-only{display:inline}
+
+/* 印刷（公文書形式） */
+@media print{
+  html,body{background:#fff;color:#000!important}
+  .appbar,.toolbar,.stats,.hint,.side,#toasts,.overlay,#dropOv{display:none!important}
+  .wrap{max-width:none;padding:0}
+  .main{display:block;margin:0}
+  .stage{background:none;border:0;padding:0;overflow:visible;display:block;}
+  .sheet,.sheet.landscape{width:auto!important;min-height:0!important;margin:0!important;padding:0!important;box-shadow:none!important;transform:none!important;color:var(--print-text-color)!important}
+  [contenteditable]{background:none!important;box-shadow:none!important}
+  .s-only{display:none!important}.p-only{display:inline!important}
+  
+  table.sched{width:100%!important}
+  .sched th,.sched td{border:var(--print-border-width) solid var(--print-border-color)!important;color:var(--print-text-color)!important}
+  .sched thead th{background:var(--table-header-bg)!important;color:var(--table-header-color)!important}
+  .sched th.rowh,.sched th.corner{background:#f1f1f1!important;color:#000!important}
+  .sched td{height:15mm;background:none!important;outline:0!important}
+  .sheet.landscape .sched td{height:10mm!important}
+  .sched td.blocked{background:#ececec!important;color:#555}
+  .sched tr{break-inside:avoid}
+  
+  .nm,.nm:hover,.nm.hl,.nm.pick,body.edit-mode .nm{
+    background:none!important;border:none!important;box-shadow:none!important;font-weight:normal!important;
+    margin:0!important;padding:1px 2px!important;cursor:auto!important;color:var(--print-text-color)!important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="appbar"><div class="appbar-in">
+  <div>
+    <h1>二者面談 日程調整・計画表作成ツール</h1>
+  </div>
+  <div class="priv">データはこの端末のブラウザ内だけで処理します</div>
+</div></div>
+
+<div class="wrap">
+  <div class="toolbar" role="toolbar" aria-label="操作">
+    <div class="tg"><div class="tg-cap">ファイル</div><div class="tg-row">
+      <button class="btn primary" id="btnOpen">CSVを開く</button>
+      <button class="btn" id="btnDemo">サンプル表示</button>
+    </div></div>
+    <div class="tg"><div class="tg-cap">調整モード</div><div class="tg-row">
+      <label class="switch" title="画面上で直接名前を編集します"><input type="checkbox" id="editModeSw"><span class="trk"></span>氏名編集モード</label>
+      <button class="btn" id="btnShift">一括シフト</button>
+      <button class="btn" id="btnAuto">自動配置リセット</button>
+    </div></div>
+    <div class="tg"><div class="tg-cap">履歴</div><div class="tg-row">
+      <button class="btn" id="btnUndo" disabled>戻す</button>
+      <button class="btn" id="btnRedo" disabled>やり直す</button>
+    </div></div>
+    <div class="tg"><div class="tg-cap">表示・レイアウト</div><div class="tg-row">
+      <button class="btn" id="btnFlip">表の縦横を反転</button>
+      <label class="chk"><input type="checkbox" id="chkNo">出席番号を表示</label>
+      <label style="font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:4px">縮尺: <input class="field num" id="scaleIn" type="number" min="50" max="150" step="5" value="100">%</label>
+      <button class="btn" id="btnStyleConfig">描画・濃度調整</button>
+    </div></div>
+    <div class="tg"><div class="tg-cap">出力</div><div class="tg-row">
+      <button class="btn primary" id="btnPrint">印刷 / PDF保存</button>
+      <button class="btn" id="btnCsv">CSV保存</button>
+      <button class="btn" id="btnCopy">表をコピー</button>
+    </div></div>
+    <div class="tg"><div class="tg-cap">検索（氏名・相談内容・NG日時）</div><div class="tg-row">
+      <input class="field" id="q" type="search" placeholder="例: 友達関係 / 12/4 / 佐藤" autocomplete="off">
+      <span id="qCnt" style="font-size:12px;color:var(--muted)"></span>
+    </div></div>
+  </div>
+  <input type="file" id="fileIn" accept=".csv,text/csv" hidden>
+
+  <div class="stats" id="stats"></div>
+  <div class="hint" id="hint"></div>
+
+  <div class="main">
+    <div class="stage"><div class="sheet" id="sheet">
+      <div class="p-top">
+        <div class="p-to" contenteditable="true" data-k="target" data-ph="宛名" spellcheck="false"></div>
+        <div class="p-right">
+          <div contenteditable="true" data-k="date" data-ph="発行日付" spellcheck="false"></div>
+          <div contenteditable="true" data-k="cls" data-ph="年・組・担任" spellcheck="false"></div>
+        </div>
+      </div>
+      <div class="p-title" contenteditable="true" data-k="title" data-ph="タイトル" spellcheck="false"></div>
+      <div class="p-intro" contenteditable="true" data-k="intro" data-ph="冒頭の挨拶文" spellcheck="false"></div>
+      <table class="sched" id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+      <div class="p-notes" contenteditable="true" data-k="notes" data-ph="注意事項" spellcheck="false"></div>
+    </div></div>
+
+    <aside class="side">
+      <section class="card"><h3>選択中の児童</h3><div class="detail" id="detail"></div></section>
+      <section class="card"><h3>調整不能（要手動配置）<span class="cnt" id="unCnt"></span></h3>
+        <div class="zone" id="unZone"><ul id="unList"></ul></div>
+        <p class="note">表の枠へドラッグして配置します。表から外す時もここへドロップします。</p>
+      </section>
+      <section class="card"><h3>兄弟・姉妹</h3><ul class="sib" id="sibList"></ul>
+        <p class="note">クリックで表の該当児童へ移動してハイライトします。もう一度クリックで解除します。</p></section>
+      <section class="card"><h3>用紙・枠の設定</h3>
+        <div class="set-grid">
+          <label for="paper">用紙の向き（A4）</label>
+          <select class="field" id="paper">
+            <option value="portrait">縦向き </option>
+            <option value="landscape">横向き </option>
+          </select>
+          <label for="lenIn">面談時間（分）</label>
+          <input class="field num" id="lenIn" type="number" min="5" max="60" step="5" value="15">
+          <label for="gapIn">次までの間隔（分）</label>
+          <input class="field num" id="gapIn" type="number" min="0" max="30" step="5" value="5">
+        </div>
+        <p class="note">面談時間・間隔を変えた場合は、下のボタンで枠を作り直します。</p>
+        <div style="margin-top:8px"><button class="btn sm" id="btnRegen">枠を作り直して自動配置</button></div>
+      </section>
+      <section class="card"><h3>操作のヒント</h3>
+        <p class="note" style="margin:0">・移動はドラッグアンドドロップのみで行います。<br>
+        ・「氏名編集モード」ONで画面上の名前を直接修正可能。<br>
+        ・PDF化（印刷）時は装飾や枠が自動カットされ素のテキストで印字。<br>
+        ・Ctrl+Z で戻す／Ctrl+Y でやり直し。</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<!-- 確認ダイアログ -->
+<div class="overlay" id="dlg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <header id="dlgTitle"></header><div class="body" id="dlgBody"></div>
+  <footer><button class="btn" id="dlgNo"></button><button class="btn primary" id="dlgYes"></button></footer>
+</div></div>
+
+<!-- スタイル・濃度調整ダイアログ -->
+<div class="overlay" id="styleDlg"><div class="modal" role="dialog" aria-modal="true">
+  <header>描画・濃度・線設定</header>
+  <div class="body" style="display:flex;flex-direction:column;gap:12px;">
+    <div>
+      <label style="font-weight:bold;display:block;margin-bottom:4px;">文字・線の色（濃度）</label>
+      <select class="field" id="cfgColor" style="width:100%;">
+        <option value="#000000">純黒 (標準)</option>
+        <option value="#1c2538">ダークネイビー</option>
+        <option value="#333333">ダークグレー</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-weight:bold;display:block;margin-bottom:4px;">表の罫線の太さ</label>
+      <select class="field" id="cfgBorderWidth" style="width:100%;">
+        <option value="1px">細め (1px)</option>
+        <option value="1.5px">標準 (1.5px)</option>
+        <option value="2px">太め (2px)</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-weight:bold;display:block;margin-bottom:4px;">表ヘッダーの背景色 (印刷時)</label>
+      <select class="field" id="cfgHeaderBg" style="width:100%;">
+        <option value="#27396a">濃紺 (白文字)</option>
+        <option value="#e2e8f0">ライトグレー (黒文字)</option>
+        <option value="#ffffff">白 (枠線のみ)</option>
+      </select>
+    </div>
+  </div>
+  <footer><button class="btn primary" onclick="$('styleDlg').classList.remove('show');">閉じる</button></footer>
+</div></div>
+
+<!-- 一括シフト -->
+<div class="overlay" id="shiftDlg"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="shiftT">
+  <header id="shiftT">一括シフト：基準にする枠を選んでください</header>
+  <div class="body">
+    <p style="margin:0 0 8px">選んだ枠とそれ以降のすべての面談を、1コマ後ろへずらします（不可枠は飛ばします）。</p>
+    <div id="shiftTbl" style="overflow:auto"></div>
+    <p id="shiftInfo" style="margin:10px 0 4px;font-weight:600"></p>
+    <label class="chk"><input type="checkbox" id="shiftStop">最初に見つかった空き枠で止める（空き枠を詰めて、それ以降は動かさない）</label>
+  </div>
+  <footer><button class="btn" id="shiftNo">キャンセル</button><button class="btn primary" id="shiftYes" disabled>この枠からシフトする</button></footer>
+</div></div>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="dropOv">CSVファイルをここへドロップして読み込み</div>
+
+<script>
+"use strict";
+
+const DOW = ['日','月','火','水','木','金','土'];
+const mm = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+
+function norm(s){
+  return String(s == null ? '' : s).normalize('NFKC')
+    .replace(/[\u301C\u3030]/g,'~').replace(/[\u2010-\u2015\u2212]/g,'-');
+}
+
+function parseCSV(text){
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (q){
+      if (ch === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; }
+      else f += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(f); f = ''; }
+    else if (ch === '\n' || ch === '\r'){
+      if (ch === '\r' && text[i+1] === '\n') i++;
+      row.push(f); f = ''; rows.push(row); row = [];
+    } else f += ch;
+  }
+  if (f !== '' || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+const TOKEN_RE = /(?<!\d)(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?|(?<!\d)(\d{1,2}):(\d{2})\s*[~\-]\s*(\d{1,2}):(\d{2})/g;
+function tokenize(s){
+  const t = norm(s), out = []; let m;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(t))){
+    if (m[1] !== undefined){
+      const mo = +m[1], d = +m[2];
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) out.push({t:'d', key: mo + '/' + d});
+    } else out.push({t:'r', a: +m[3]*60 + +m[4], b: +m[5]*60 + +m[6]});
+  }
+  return out;
+}
+
+function parseNG(s){
+  const res = {whole:[], ranges:{}, any:[]};
+  let cur = null, has = false;
+  const flush = () => { if (cur && !has) res.whole.push(cur); };
+  for (const e of tokenize(s)){
+    if (e.t === 'd'){ flush(); cur = e.key; has = false; }
+    else { has = true; if (cur) (res.ranges[cur] = res.ranges[cur] || []).push([e.a, e.b]); else res.any.push([e.a, e.b]); }
+  }
+  flush();
+  return res;
+}
+function isNg(ng, date, a, b){
+  if (!ng) return false;
+  if (ng.whole.includes(date)) return true;
+  const hit = list => list && list.some(([x,y]) => a < y && x < b);
+  return hit(ng.ranges[date]) || hit(ng.any);
+}
+
+function parseMaster(s){
+  const by = {}; let cur = null;
+  for (const e of tokenize(s)){
+    if (e.t === 'd') cur = e.key;
+    else if (cur) (by[cur] = by[cur] || []).push([e.a, e.b]);
+  }
+  return by;
+}
+
+function buildLayout(byDate, len, gap){
+  const dates = Object.keys(byDate).sort((x,y) => {
+    const [a,b] = x.split('/').map(Number), [c,d] = y.split('/').map(Number);
+    return a - c || b - d;
+  });
+  const starts = new Set(), slot = {}, bk = new Map();
+  dates.forEach(d => byDate[d].forEach(([a,b]) => {
+    bk.set(a + '-' + b, [a,b]);
+    for (let s = a; s + len <= b; s += len + gap){ starts.add(s); slot[d + '|' + s] = 1; }
+  }));
+  const blocks = [...bk.values()].sort((x,y) => x[0]-y[0] || x[1]-y[1]);
+  const rows = [...starts].sort((x,y) => x-y).map(s => ({
+    start: s, end: s + len, label: mm(s) + '～' + mm(s + len),
+    block: blocks.findIndex(([a,b]) => s >= a && s < b)
+  }));
+  const blocked = rows.map(r => dates.map(d => !slot[d + '|' + r.start]));
+  return {dates, rows, blocked, blocks};
+}
+
+function autoAssign({n, dates, rows, blocked, ngFn, pairs}){
+  const R = rows.length, C = dates.length;
+  const per = dates.map((_, c) => { const a = []; for (let r = 0; r < R; r++) if (!blocked[r][c]) a.push([r,c]); return a; });
+  const maxK = Math.max(0, ...per.map(a => a.length));
+  const order = [];
+  for (let k = 0; k < maxK; k++) for (let c = 0; c < C; c++) if (per[c][k]) order.push(per[c][k]);
+  const owner = new Array(order.length).fill(-1);
+  const feas = [];
+  for (let i = 0; i < n; i++){
+    const f = []; order.forEach(([r,c], s) => { if (!ngFn(i, r, c)) f.push(s); });
+    feas.push(f);
+  }
+  const tryA = (i, seen) => {
+    for (const s of feas[i]){
+      if (seen[s]) continue; seen[s] = 1;
+      if (owner[s] < 0 || tryA(owner[s], seen)){ owner[s] = i; return true; }
+    }
+    return false;
+  };
+  for (let i = 0; i < n; i++){
+    const free = feas[i].find(s => owner[s] < 0);
+    if (free !== undefined) owner[free] = i;
+    else tryA(i, new Array(order.length).fill(0));
+  }
+  const own = Array.from({length:R}, () => new Array(C).fill(-1));
+  const placed = new Set();
+  owner.forEach((i, s) => { if (i >= 0){ const [r,c] = order[s]; own[r][c] = i; placed.add(i); } });
+  const unassigned = []; for (let i = 0; i < n; i++) if (!placed.has(i)) unassigned.push(i);
+
+  const find = i => { for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) if (own[r][c] === i) return [r,c]; return null; };
+  for (const [a,b] of (pairs || [])){
+    const pa = find(a), pb = find(b); if (!pa || !pb) continue;
+    if (pa[1] === pb[1] && Math.abs(pa[0] - pb[0]) === 1) continue;
+    for (const dr of [1,-1]){
+      const r2 = pa[0] + dr, c2 = pa[1];
+      if (r2 < 0 || r2 >= R || blocked[r2][c2]) continue;
+      const x = own[r2][c2];
+      if (ngFn(b, r2, c2)) continue;
+      if (x < 0){ own[pb[0]][pb[1]] = -1; own[r2][c2] = b; break; }
+      if (x === a || ngFn(x, pb[0], pb[1])) continue;
+      own[pb[0]][pb[1]] = x; own[r2][c2] = b; break;
+    }
+  }
+
+  return {own, unassigned};
+}
+
+/* アプリ本体 */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const App = {
+  students:[], byId:new Map(), groups:[], year:new Date().getFullYear(), tsMonth:0,
+  csvText:'', isSample:false, len:15, gap:5, scale:100,
+  rowDate:false, editMode:false, showNo:false,
+  picked:null,
+  hlKey:null
+};
+let st = null;
+let hist = [], hi = -1;
+let drag = null;
+
+function toast(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : ''); el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), type === 'err' ? 5200 : 2800);
+}
+let dlgDone = null;
+function dialog({title, html, ok = 'OK', cancel = 'キャンセル'}){
+  return new Promise(res => {
+    $('dlgTitle').textContent = title; $('dlgBody').innerHTML = html;
+    $('dlgYes').textContent = ok; $('dlgNo').textContent = cancel || '';
+    $('dlgNo').style.display = cancel ? '' : 'none';
+    $('dlg').classList.add('show');
+    const done = v => { $('dlg').classList.remove('show'); dlgDone = null; res(v); };
+    dlgDone = done;
+    $('dlgYes').onclick = () => done(true);
+    $('dlgNo').onclick = () => done(false);
+    $('dlgYes').focus();
+  });
+}
+
+function dinfo(key){
+  const [m,d] = key.split('/').map(Number);
+  let y = App.year; if (App.tsMonth && m < App.tsMonth) y++;
+  return {m, d, w: DOW[new Date(y, m-1, d).getDay()]};
+}
+const dateText = key => { const i = dinfo(key); return i.m + '月' + i.d + '日（' + i.w + '）'; };
+const slotName = loc => dateText(st.dates[loc.c]) + ' ' + st.rows[loc.r].label;
+const stuLabel = s => (App.showNo && s.no ? s.no + ' ' : '') + s.name;
+const isNgCell = (id, r, c) => isNg(App.byId.get(id).ng, st.dates[c], st.rows[r].start, st.rows[r].end);
+
+function loadCSV(text, opts = {}){
+  const rows = parseCSV(text);
+  if (rows.length < 2){ toast('CSVにデータ行がありません。', 'err'); return false; }
+  const col = {};
+  rows[0].map(norm).forEach((h, i) => {
+    if (/タイムスタンプ|timestamp/i.test(h)) col.ts ??= i;
+    else if (/保護者/.test(h)) col.guard ??= i;
+    else if (/児童名|生徒名|氏名|名前/.test(h)) col.name ??= i;
+    else if (/出席番号|番号/.test(h)) col.no ??= i;
+    else if (/できない|不可|NG/i.test(h)) col.ng ??= i;
+    else if (/兄弟|姉妹/.test(h)) col.sib ??= i;
+    else if (/相談|話し合い|聞きたい/.test(h)) col.memo ??= i;
+    else if (/できる|日程|希望/.test(h)) col.cond ??= i;
+  });
+  if (col.name == null){ toast('「児童名」の列が見つかりません。', 'err'); return false; }
+
+  let master = null; const list = []; let tsYear = 0, tsMonth = 0;
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i], g = k => col[k] != null ? (r[col[k]] || '').trim() : '';
+    const name = g('name'); if (!name) continue;
+    if (norm(name).includes('初期設定')){
+      master = r.filter((_, j) => j !== col.ts && j !== col.name).join('、');
+      continue;
+    }
+    const ts = norm(g('ts')).match(/(\d{4})\s*[\/年]\s*(\d{1,2})/);
+    if (ts && !tsYear){ tsYear = +ts[1]; tsMonth = +ts[2]; }
+    list.push({name, no:g('no'), guard:g('guard'), cond:g('cond'), ngRaw:g('ng'), ng:parseNG(g('ng')), sibRaw:g('sib'), memo:g('memo')});
+  }
+  if (master == null){ toast('「初期設定用」の行が見つかりません。', 'err'); return false; }
+  const lay = buildLayout(parseMaster(master), App.len, App.gap);
+  if (!lay.dates.length || !lay.rows.length){ toast('初期設定用の行から日時を読み取れませんでした。', 'err'); return false; }
+  if (!list.length){ toast('児童のデータがありません。', 'err'); return false; }
+
+  if (list.every(s => /^\d+$/.test(norm(s.no)))) list.sort((a,b) => +norm(a.no) - +norm(b.no));
+  list.forEach((s, i) => s.id = i);
+  App.students = list; App.byId = new Map(list.map(s => [s.id, s]));
+  if (tsYear){ App.year = tsYear; App.tsMonth = tsMonth; }
+
+  const key = s => norm(s).replace(/\s+/g, '');
+  const none = /^(なし|無し|無|いません|いない|-)?$/;
+  const gs = new Map();
+  list.forEach(s => {
+    if (none.test(key(s.sibRaw))) return;
+    const t = key(s.sibRaw);
+    const other = list.find(o => o.id !== s.id && key(o.name).length >= 2 && t.includes(key(o.name)));
+    const ids = other ? [s.id, other.id].sort((a,b) => a-b) : [s.id];
+    const k = other ? 'p' + ids.join('-') : 's' + s.id;
+    if (!gs.has(k)) gs.set(k, {key:k, ids, ext: other ? null : s.sibRaw});
+  });
+  App.groups = [...gs.values()];
+
+  App.hlKey = null; App.picked = null;
+  st = {dates:lay.dates, rows:lay.rows, blocked:lay.blocked, blocks:lay.blocks, grid:[], unassigned:[], overrides:[]};
+  runAuto();
+  App.csvText = text; App.isSample = !!opts.sample;
+  hist = []; hi = -1; pushHist(); render();
+  return true;
+}
+
+function runAuto(){
+  const pairs = App.groups.filter(g => g.ids.length === 2).map(g => g.ids);
+  const {own, unassigned} = autoAssign({
+    n: App.students.length, dates: st.dates, rows: st.rows, blocked: st.blocked, pairs,
+    ngFn: (i, r, c) => isNgCell(i, r, c)
+  });
+  st.grid = own.map(row => row.map(i => i >= 0 ? [i] : []));
+  st.unassigned = unassigned;
+  st.overrides = [];
+}
+
+function pushHist(){
+  hist = hist.slice(0, hi + 1); hist.push(JSON.stringify(st));
+  if (hist.length > 150) hist.shift();
+  hi = hist.length - 1;
+}
+function commit(msg){ pushHist(); render(); if (msg) toast(msg); }
+function undo(){ if (hi > 0){ st = JSON.parse(hist[--hi]); render(); } }
+function redo(){ if (hi < hist.length - 1){ st = JSON.parse(hist[++hi]); render(); } }
+
+function matrix(){
+  const dh = k => { const i = dinfo(k); return {a: i.m + '月' + i.d + '日', b: '（' + i.w + '）'}; };
+  if (!App.rowDate) return {
+    corner:'時間帯', nR: st.rows.length, nC: st.dates.length,
+    rowHead: i => ({a: st.rows[i].label}), colHead: j => dh(st.dates[j]), rc: (i,j) => [i,j]
+  };
+  return {
+    corner:'日付', nR: st.dates.length, nC: st.rows.length,
+    rowHead: i => { const h = dh(st.dates[i]); return {a: h.a + h.b}; }, colHead: j => ({a: st.rows[j].label}), rc: (i,j) => [j,i]
+  };
+}
+const headHTML = h => esc(h.a) + (h.b ? '<br><span class="wk">' + esc(h.b) + '</span>' : '');
+const headText = h => h.a + (h.b || '');
+
+function render(){
+  if (!st) return;
+  document.body.classList.toggle('edit-mode', App.editMode);
+  renderTable(); renderSide(); renderStats(); renderHint(); updateButtons(); refreshHighlights();
+}
+
+function nameHTML(id, r, c){
+  const s = App.byId.get(id);
+  const cls = ['nm'];
+  if (c != null && isNgCell(id, r, c)) cls.push('ngmark');
+  const tip = [s.guard && '保護者: ' + s.guard, s.memo && '相談: ' + s.memo, s.ngRaw && 'NG: ' + s.ngRaw].filter(Boolean).join('\n');
+  const editableAttr = App.editMode ? 'contenteditable="true" spellcheck="false"' : '';
+  return `<span class="${cls.join(' ')}" draggable="true" data-id="${id}" title="${esc(tip)}" ${editableAttr}>${esc(stuLabel(s))}</span>`;
+}
+
+function renderTable(){
+  const M = matrix();
+  let h = '<tr><th class="corner">' + M.corner + '</th>';
+  for (let j = 0; j < M.nC; j++) h += '<th>' + headHTML(M.colHead(j)) + '</th>';
+  $('thead').innerHTML = h + '</tr>';
+  let b = '';
+  for (let i = 0; i < M.nR; i++){
+    b += '<tr><th class="rowh" scope="row">' + headHTML(M.rowHead(i)) + '</th>';
+    for (let j = 0; j < M.nC; j++){
+      const [r,c] = M.rc(i,j), list = st.grid[r][c];
+      let cls = '';
+      if (st.blocked[r][c] && !list.length) cls = 'blocked';
+      else if (list.length > 1) cls = 'dup';
+      const inner = cls.startsWith('blocked') ? '<span class="s-only">不可</span><span class="p-only">―</span>' : list.map(id => nameHTML(id, r, c)).join('');
+      b += `<td class="${cls}" data-r="${r}" data-c="${c}">${inner}</td>`;
+    }
+    b += '</tr>';
+  }
+  $('tbody').innerHTML = b;
+}
+
+function posMap(){
+  const m = new Map();
+  st.grid.forEach((row, r) => row.forEach((l, c) => l.forEach(id => m.set(id, {r,c}))));
+  return m;
+}
+
+function renderSide(){
+  $('unCnt').textContent = st.unassigned.length ? st.unassigned.length + '名' : '';
+  $('unList').innerHTML = st.unassigned.length
+    ? st.unassigned.map(id => '<li>' + nameHTML(id, null, null) + '</li>').join('')
+    : '<li><p class="empty">該当者はいません</p></li>';
+
+  const pm = posMap();
+  const where = id => pm.has(id) ? dateText(st.dates[pm.get(id).c]).replace(/（.）/, '') + ' ' + st.rows[pm.get(id).r].label.split('～')[0] : '未配置';
+  $('sibList').innerHTML = App.groups.length ? App.groups.map(g => {
+    const a = App.byId.get(g.ids[0]);
+    let main, sub;
+    if (g.ids.length === 2){ const b = App.byId.get(g.ids[1]); main = esc(a.name) + ' / ' + esc(b.name); sub = where(a.id) + ' / ' + where(b.id); }
+    else { main = esc(a.name) + ' / ' + esc(g.ext); sub = where(a.id) + '（他学級との調整は担任間で確認）'; }
+    return `<li data-g="${g.key}" class="${App.hlKey === g.key ? 'on' : ''}">${main}<small>${esc(sub)}</small></li>`;
+  }).join('') : '<li style="cursor:default;border:0;padding:0"><p class="empty">兄弟・姉妹の登録はありません</p></li>';
+
+  const d = $('detail');
+  if (App.picked == null || !App.byId.has(App.picked)) d.innerHTML = '<p class="empty">表の名前をクリックすると詳細が表示されます。</p>';
+  else {
+    const s = App.byId.get(App.picked);
+    d.innerHTML = `<div class="dname">${esc(s.name)}</div><dl>
+      <dt>出席番号</dt><dd>${esc(s.no || '—')}</dd>
+      <dt>保護者</dt><dd>${esc(s.guard || '—')}</dd>
+      <dt>現在の枠</dt><dd>${pm.has(s.id) ? esc(slotName(pm.get(s.id))) : '未配置'}</dd>
+      <dt>NG日時</dt><dd>${esc(s.ngRaw || 'なし')}</dd>
+      <dt>兄弟姉妹</dt><dd>${esc(s.sibRaw || 'なし')}</dd>
+      <dt>相談内容</dt><dd>${esc(s.memo || '—')}</dd></dl>`;
+  }
+}
+
+function counts(){
+  let placed = 0, dup = 0, ng = 0, free = 0, open = 0;
+  st.grid.forEach((row, r) => row.forEach((l, c) => {
+    placed += l.length; if (l.length > 1) dup++;
+    l.forEach(id => { if (isNgCell(id, r, c)) ng++; });
+    if (!st.blocked[r][c]){ open++; if (!l.length) free++; }
+  }));
+  return {placed, dup, ng, free, open};
+}
+function renderStats(){
+  const k = counts(), un = st.unassigned.length;
+  const chip = (label, v, cls) => `<span class="chip ${cls || ''}">${label}<b>${v}</b></span>`;
+  $('stats').innerHTML = (App.isSample ? '<span class="chip info">サンプルデータを表示中</span>' : '')
+    + chip('児童', App.students.length + '名') + chip('配置済', k.placed + '名')
+    + chip('調整不能', un + '名', un ? 'warn' : '') + chip('重複枠', k.dup, k.dup ? 'warn' : '')
+    + chip('NG枠への配置', k.ng + '名', k.ng ? 'amber' : '') + chip('空き枠', k.free + ' / ' + k.open);
+}
+function renderHint(){
+  const h = $('hint');
+  h.className = 'hint';
+  if (App.editMode) h.textContent = '氏名編集モード ON：画面上の氏名を直接クリックして修正できます。ドラッグ移動も可能です。';
+  else h.textContent = '操作方法：児童の名前をドラッグ＆ドロップして表や調整不能リストへ移動させてください。';
+}
+function updateButtons(){
+  $('btnUndo').disabled = hi <= 0; $('btnRedo').disabled = hi >= hist.length - 1;
+}
+
+function refreshHighlights(){
+  const q = norm($('q').value).replace(/\s+/g, '').toLowerCase();
+  const hit = new Set();
+  // 保護者名を検索対象外にするため、name, no, memo, ngRaw, sibRaw のみを対象とする
+  if (q) App.students.forEach(s => {
+    if (norm([s.name, s.no, s.memo, s.ngRaw, s.sibRaw].join(' ')).replace(/\s+/g, '').toLowerCase().includes(q)) hit.add(s.id);
+  });
+  const sib = new Set();
+  if (App.hlKey){ const g = App.groups.find(g => g.key === App.hlKey); if (g) g.ids.forEach(i => sib.add(i)); }
+  document.querySelectorAll('#sheet .nm, #unList .nm').forEach(el => {
+    const id = +el.dataset.id;
+    el.classList.toggle('hl', hit.has(id) || sib.has(id));
+    el.classList.toggle('pick', App.picked === id);
+  });
+  $('qCnt').textContent = q ? hit.size + '件' : '';
+  return hit;
+}
+function scrollToFirstHit(){
+  const el = document.querySelector('#sheet .nm.hl, #unList .nm.hl');
+  if (el) el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+}
+
+const locList = loc => loc ? st.grid[loc.r][loc.c] : st.unassigned;
+
+function warnFor(id, loc){
+  const key = `${loc.r}_${loc.c}_${id}`;
+  if (st.overrides.includes(key)) return null;
+  const s = App.byId.get(id), w = [];
+  if (st.blocked[loc.r][loc.c] && !st.grid[loc.r][loc.c].length) w.push('教員の不可枠です（' + slotName(loc) + '）');
+  if (isNgCell(id, loc.r, loc.c)) w.push(s.name + ' さんのNG指定の枠です（' + slotName(loc) + '）');
+  return w.length ? {key, w} : null;
+}
+async function confirmPlace(items){
+  const ws = [];
+  items.forEach(it => {
+    if (!it.loc) return;
+    const x = warnFor(it.id, it.loc); if (x) ws.push(x);
+  });
+  if (ws.length){
+    const ok = await dialog({
+      title: '確認：この枠に配置しますか？',
+      html: '<ul class="warn">' + ws.flatMap(x => x.w).map(t => '<li>' + esc(t) + '</li>').join('') +
+            '</ul><div style="color:#667085;font-size:12px">「配置する」を選ぶと不可枠は稼働枠に切り替わります。</div>',
+      ok: '配置する'
+    });
+    if (!ok) return false;
+    ws.forEach(x => { if (x.key) st.overrides.push(x.key); });
+  }
+  items.forEach(it => { if (it.loc) st.blocked[it.loc.r][it.loc.c] = false; });
+  return true;
+}
+function removeAt(loc, id){ const L = locList(loc), i = L.indexOf(id); if (i >= 0) L.splice(i, 1); }
+const sameLoc = (a, b) => (!a && !b) || (a && b && a.r === b.r && a.c === b.c);
+
+async function moveTo(id, from, to){
+  if (sameLoc(from, to)) return;
+  if (to && !await confirmPlace([{id, loc:to}])) return;
+  removeAt(from, id); locList(to).push(id);
+  commit(to ? `${App.byId.get(id).name} さんを ${slotName(to)} へ移動しました。` : `${App.byId.get(id).name} さんを調整不能リストへ戻しました。`);
+}
+
+function toggleBlock(r, c){
+  if (st.grid[r][c].length){ toast('児童が配置されている枠は、不可にできません。', 'warn'); return; }
+  st.blocked[r][c] = !st.blocked[r][c];
+  commit(slotName({r,c}) + (st.blocked[r][c] ? ' を不可枠にしました。' : ' を稼働枠にしました。'));
+}
+
+let shiftBase = null, shiftOrder = [];
+function chronoOrder(){
+  const o = [];
+  st.dates.forEach((_, c) => st.rows.forEach((__, r) => { if (!st.blocked[r][c]) o.push([r,c]); }));
+  return o;
+}
+function openShift(){
+  shiftBase = null; shiftOrder = chronoOrder();
+  $('shiftStop').checked = false; $('shiftYes').disabled = true;
+  $('shiftInfo').textContent = '表の枠をクリックして基準を選んでください。';
+  drawShiftTable(); $('shiftDlg').classList.add('show');
+}
+function closeShift(){ $('shiftDlg').classList.remove('show'); }
+function shiftRange(){
+  if (shiftBase == null) return null;
+  const k = shiftBase; let j = shiftOrder.length - 1;
+  if ($('shiftStop').checked){
+    const e = shiftOrder.findIndex(([r,c], i) => i > k && !st.grid[r][c].length);
+    if (e > 0) j = e;
+  }
+  return {k, j};
+}
+function drawShiftTable(){
+  const M = matrix(), rg = shiftRange();
+  const idx = new Map(shiftOrder.map(([r,c], i) => [r + '_' + c, i]));
+  let h = '<table class="minitbl"><thead><tr><th>' + M.corner + '</th>';
+  for (let j = 0; j < M.nC; j++) h += '<th>' + esc(headText(M.colHead(j))) + '</th>';
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < M.nR; i++){
+    h += '<tr><th>' + esc(headText(M.rowHead(i))) + '</th>';
+    for (let j = 0; j < M.nC; j++){
+      const [r,c] = M.rc(i,j), k = idx.get(r + '_' + c);
+      const names = st.grid[r][c].map(id => esc(App.byId.get(id).name)).join('<br>');
+      if (k == null) h += '<td class="blk">不可</td>';
+      else {
+        let cls = 'slot'; if (rg && k === rg.k) cls += ' base'; else if (rg && k > rg.k && k <= rg.j) cls += ' after';
+        h += `<td class="${cls}" data-k="${k}">${names || '<span style="color:#a3adc0">空き</span>'}</td>`;
+      }
+    }
+    h += '</tr>';
+  }
+  $('shiftTbl').innerHTML = h + '</tbody></table>';
+  if (rg){
+    let n = 0; for (let i = rg.k; i <= rg.j; i++){ const [r,c] = shiftOrder[i]; n += st.grid[r][c].length; }
+    const [lr, lc] = shiftOrder[rg.j], over = st.grid[lr][lc].length;
+    $('shiftInfo').textContent = `${slotName({r:shiftOrder[rg.k][0], c:shiftOrder[rg.k][1]})} 以降の ${n} 名を1コマ後ろへずらします。` +
+      (over ? `最後の枠の ${over} 名は「調整不能」リストへ移ります。` : '');
+    $('shiftYes').disabled = false;
+  }
+}
+function execShift(){
+  const rg = shiftRange(); if (!rg) return;
+  const before = counts().ng;
+  const [lr, lc] = shiftOrder[rg.j], over = st.grid[lr][lc].slice();
+  for (let i = rg.j; i > rg.k; i--){
+    const [r,c] = shiftOrder[i], [pr,pc] = shiftOrder[i-1];
+    st.grid[r][c] = st.grid[pr][pc].slice();
+  }
+  const [br, bc] = shiftOrder[rg.k]; st.grid[br][bc] = [];
+  st.unassigned.push(...over);
+  closeShift();
+  const after = counts().ng;
+  commit('一括シフトしました。' + (over.length ? ` ${over.length}名が調整不能リストへ移りました。` : '') + (after > before ? ` NG枠に入った児童が ${after - before} 名います。` : ''));
+}
+
+function tableMatrixText(sep){
+  const M = matrix(), out = [];
+  out.push([M.corner, ...Array.from({length:M.nC}, (_, j) => headText(M.colHead(j)))]);
+  for (let i = 0; i < M.nR; i++){
+    const row = [headText(M.rowHead(i))];
+    for (let j = 0; j < M.nC; j++){
+      const [r,c] = M.rc(i,j), l = st.grid[r][c];
+      row.push(l.length ? l.map(id => stuLabel(App.byId.get(id))).join(sep) : (st.blocked[r][c] ? '（不可）' : ''));
+    }
+    out.push(row);
+  }
+  return out;
+}
+function exportCSV(){
+  const rows = tableMatrixText('／');
+  if (st.unassigned.length){ rows.push([]); rows.push(['調整不能', ...st.unassigned.map(id => stuLabel(App.byId.get(id)))]); }
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([new Uint8Array([0xEF,0xBB,0xBF]), csv], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a'); a.href = url; a.download = '二者面談計画表.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('CSVを保存しました。');
+}
+async function copyTable(){
+  const text = tableMatrixText('、').map(r => r.join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(text); }
+  catch (e){
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove();
+    if (!ok){ toast('コピーに失敗しました。', 'err'); return; }
+  }
+  toast('コピーしました。Excelやスプレッドシートへそのまま貼り付けできます。');
+}
+async function doPrint(){
+  if (!st) return;
+  const un = st.unassigned.length, k = counts();
+  if (un || k.dup){
+    const parts = []; if (un) parts.push('調整不能の児童が ' + un + ' 名います'); if (k.dup) parts.push('同じ枠に複数名の重複が ' + k.dup + ' 枠あります');
+    if (!await dialog({title:'このまま印刷しますか？', html: '<p style="margin:0">' + parts.join('。') + '。印刷物には調整不能の児童は載りません。</p>', ok:'印刷する'})) return;
+  }
+  render();
+  window.print();
+}
+
+async function readFile(file){
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', {fatal:true}).decode(buf); }
+  catch (e){ try { return new TextDecoder('shift_jis').decode(buf); } catch (_) { return new TextDecoder().decode(buf); } }
+}
+async function openFile(file){
+  if (!file) return;
+  if (st && !App.isSample && hi > 0 && !await dialog({title:'新しいCSVを読み込みますか？', html:'現在の手動調整の内容は失われます。', ok:'読み込む'})) return;
+  const ok = loadCSV(await readFile(file));
+  if (ok) toast(`「${file.name}」を読み込みました（児童 ${App.students.length} 名）。`);
+}
+function demoCSV(){
+  const head = 'タイムスタンプ,児童名,出席番号,保護者名,面談できる日程,面談できない時間帯,兄弟・姉妹（校内）,話し合い・聞きたいこと・相談';
+  const block = d => `${d} 14:00~15:15、${d} 15:20~16:35`;
+  const master = ['11/26','11/27','12/1','12/2','12/3','12/4'].map(block).join('、');
+  const first = [
+    ['佐々木 樹','小野塚 紫苑','12/2 15:20~16:35、11/27 15:20~16:35','なし','学校での様子について聞きたい'],
+    ['鈴木 花子','博麗 幽香','12/4 14:00~15:15、15:20~16:35、11/26 14:00~15:15','なし','学校での様子について聞きたい'],
+    ['伊藤 翔','四季映姫 幽香','12/3 15:20~16:35、12/4 14:00~15:15、15:20~16:35、11/27 15:20~16:35','なし','学校での様子について聞きたい'],
+    ['山崎 瑛太','豊聡耳 幽々子','11/26 15:20~16:35','なし','友達関係について']
+  ];
+  const rest = '小林 大和:小林 恵子|吉田 悠人:吉田 健一|藤田 颯:藤田 美香|中川 奏太:中川 洋子|池田 心春:池田 隆|前田 ほのか:前田 直子|斎藤 巧:斎藤 健太|村上 蓮:村上 美紀|遠藤 翔太:遠藤 由美|福田 大和:福田 浩|金子 健:金子 真理|田中 結衣:田中 誠|松本 健:松本 幸子|木村 颯太:木村 拓也|原田 巧:原田 裕子|阿部 結愛:阿部 浩二|西村 悠人:西村 美智子|山本 陸:山本 健司|長谷川 結:長谷川 由香|坂本 陸:坂本 恵|佐藤 太郎:佐藤 花子|石川 蓮:石川 健|山口 葵:山口 裕美|岡田 翔太:岡田 隆|中村 陽菜:中村 直美|近藤 陸:近藤 健太|井上 結菜:井上 美紀|後藤 葵:後藤 由美|高橋 蓮:高橋 浩|近藤 芽衣:近藤 真理|林 詩織:林 誠|青木 結菜:青木 幸子|加藤 莉子:加藤 拓也|斉藤 陽菜:斉藤 裕子|清水 美月:清水 浩二|太田 莉子:太田 美智子|渡辺 咲:渡辺 健司|藤井 咲:藤井 由香|森 陽斗:森 恵|岡本 結愛:岡本 花子|山田 芽衣:山田 健|中島 詩織:中島 裕美|橋本 奏太:橋本 隆|小野 美月:小野 直美'.split('|');
+  const lines = [head, `2026/10/1 0:00,初期設定用,,管理者,指定あり,"${master}",なし,初期設定`];
+  first.forEach((r, i) => lines.push(`2026/10/1 10:0${i+1},${r[0]},${i+1},${r[1]},指定あり,"${r[2]}",${r[3]},${r[4]}`));
+  rest.forEach((p, i) => {
+    const [n, g] = p.split(':'), no = i + 5;
+    const sib = n === '近藤 陸' ? '近藤 芽衣' : n === '近藤 芽衣' ? '近藤 陸' : 'なし';
+    lines.push(`2026/10/1 10:${String(no + 4).padStart(2,'0')},${n},${no},${g},指定あり,,${sib},特になし`);
+  });
+  return lines.join('\n');
+}
+function runDemo(){ loadCSV(demoCSV(), {sample:true}); }
+
+const TEXT_DEFAULT = {
+  target:'保護者様', date:'令和8年 11月21日', cls:'  年  組 担任',
+  title:'二者面談のお知らせ（計画表）',
+  intro:'先日は希望日時調査に回答いただき、ありがとうございました。\n下記のように二者面談を計画させていただきました。\n何かとお忙しいとは存じますが、ご協力の程、よろしくお願いします。',
+  notes:'※上記の日程で都合が悪くなった方は、ご相談の上、交換していただいて結構です。なお、その旨を担任までご連絡ください。\n※ご来校の際には、保護者用名札を着用し、上履きをご持参ください。'
+};
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch (e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){} }
+};
+function initTexts(){
+  const saved = store.get('itv.texts.v2') || {};
+  document.querySelectorAll('[data-k]').forEach(el => {
+    const k = el.dataset.k;
+    el.textContent = k in saved ? saved[k] : TEXT_DEFAULT[k];
+    el.addEventListener('input', () => {
+      const cur = store.get('itv.texts.v2') || {};
+      cur[k] = el.innerText.replace(/\n$/, ''); store.set('itv.texts.v2', cur);
+    });
+    el.addEventListener('paste', e => {
+      e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+    });
+    if (!['intro','notes'].includes(k)) el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); el.blur(); } });
+  });
+}
+
+function applyPaper(){
+  const mode = $('paper').value;
+  const land = mode === 'landscape';
+  $('sheet').classList.toggle('landscape', land);
+  $('pageStyle').textContent = `@page{size:A4 ${land ? 'landscape' : 'portrait'};margin:12mm}`;
+  store.set('itv.paper', mode);
+  
+  $('scaleIn').value = land ? 80 : 100;
+  applyScale();
+}
+
+function applyScale(){
+  const sc = Math.max(50, Math.min(150, +$('scaleIn').value || 100));
+  App.scale = sc;
+  const sheet = $('sheet');
+  if (sc === 100){
+    sheet.style.transform = 'none';
+    sheet.style.marginBottom = '0';
+  } else {
+    sheet.style.transform = `scale(${sc / 100})`;
+    const h = sheet.offsetHeight;
+    sheet.style.marginBottom = `-${h * (1 - sc / 100)}px`;
+  }
+}
+
+const locOf = el => { const td = el.closest('td[data-r]'); return td ? {r:+td.dataset.r, c:+td.dataset.c} : null; };
+
+$('btnOpen').onclick = () => $('fileIn').click();
+$('fileIn').onchange = e => { openFile(e.target.files[0]); e.target.value = ''; };
+$('btnDemo').onclick = async () => {
+  if (st && !App.isSample && hi > 0 && !await dialog({title:'サンプルを表示しますか？', html:'現在の手動調整の内容は失われます。', ok:'表示する'})) return;
+  runDemo();
+};
+$('editModeSw').onchange = e => { App.editMode = e.target.checked; if (st) render(); };
+$('btnShift').onclick = () => { if (!st) return; openShift(); };
+$('btnAuto').onclick = async () => {
+  if (!st) return;
+  if (!await dialog({title:'自動配置をやり直しますか？', html:'手動で調整した配置はリセットされます。', ok:'やり直す'})) return;
+  runAuto(); commit('自動配置をやり直しました。');
+};
+$('btnUndo').onclick = undo; $('btnRedo').onclick = redo;
+$('btnFlip').onclick = () => { App.rowDate = !App.rowDate; if (st) render(); };
+$('chkNo').onchange = e => { App.showNo = e.target.checked; store.set('itv.showNo', App.showNo); if (st) render(); };
+$('btnPrint').onclick = doPrint; $('btnCsv').onclick = () => st && exportCSV(); $('btnCopy').onclick = () => st && copyTable();
+$('q').oninput = () => { if (!st) return; refreshHighlights(); if ($('q').value.trim()) scrollToFirstHit(); };
+$('paper').onchange = applyPaper;
+$('scaleIn').oninput = applyScale;
+$('btnStyleConfig').onclick = () => $('styleDlg').classList.add('show');
+
+$('cfgColor').onchange = e => document.documentElement.style.setProperty('--print-text-color', e.target.value);
+$('cfgBorderWidth').onchange = e => document.documentElement.style.setProperty('--print-border-width', e.target.value);
+$('cfgHeaderBg').onchange = e => {
+  const v = e.target.value;
+  document.documentElement.style.setProperty('--table-header-bg', v);
+  document.documentElement.style.setProperty('--table-header-color', v === '#ffffff' || v === '#e2e8f0' ? '#000000' : '#ffffff');
+};
+
+$('btnRegen').onclick = async () => {
+  if (!st) return;
+  const len = Math.max(5, Math.min(60, +$('lenIn').value || 15)), gap = Math.max(0, Math.min(30, +$('gapIn').value || 0));
+  if (!await dialog({title:'枠を作り直しますか？', html:`面談時間 ${len} 分・間隔 ${gap} 分で枠を作り直し、自動配置をやり直します。`, ok:'作り直す'})) return;
+  const old = [App.len, App.gap]; App.len = len; App.gap = gap;
+  if (loadCSV(App.csvText, {sample:App.isSample})) { store.set('itv.slot', {len, gap}); toast('枠を作り直しました。'); } else { App.len = old[0]; App.gap = old[1]; }
+};
+
+const tbody = $('tbody');
+document.addEventListener('dragstart', e => {
+  const nm = e.target.closest && e.target.closest('.nm'); if (!nm || !nm.draggable || !st) return;
+  drag = {id:+nm.dataset.id, loc:locOf(nm)};
+  e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', nm.textContent);
+  nm.classList.add('dragging');
+  tbody.querySelectorAll('td[data-r]').forEach(td => {
+    const r = +td.dataset.r, c = +td.dataset.c;
+    if (!st.blocked[r][c] && isNgCell(drag.id, r, c)) td.classList.add('hintng');
+  });
+});
+document.addEventListener('dragend', () => {
+  drag = null;
+  document.querySelectorAll('.hintng,.dropover,.dragging').forEach(el => el.classList.remove('hintng','dropover','dragging'));
+});
+tbody.addEventListener('dragover', e => {
+  const td = e.target.closest('td[data-r]'); if (!drag || !td) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move'; td.classList.add('dropover');
+});
+tbody.addEventListener('dragleave', e => {
+  const td = e.target.closest('td[data-r]'); if (td && !td.contains(e.relatedTarget)) td.classList.remove('dropover');
+});
+tbody.addEventListener('drop', async e => {
+  const td = e.target.closest('td[data-r]'); if (!drag || !td) return;
+  e.preventDefault(); const d = drag; drag = null;
+  document.querySelectorAll('.hintng,.dropover').forEach(el => el.classList.remove('hintng','dropover'));
+  await moveTo(d.id, d.loc, {r:+td.dataset.r, c:+td.dataset.c});
+});
+$('unZone').addEventListener('dragover', e => { if (!drag) return; e.preventDefault(); $('unZone').classList.add('dropover'); });
+$('unZone').addEventListener('dragleave', e => { if (!$('unZone').contains(e.relatedTarget)) $('unZone').classList.remove('dropover'); });
+$('unZone').addEventListener('drop', async e => {
+  if (!drag) return; e.preventDefault(); $('unZone').classList.remove('dropover');
+  const d = drag; drag = null;
+  document.querySelectorAll('.hintng,.dropover').forEach(el => el.classList.remove('hintng','dropover'));
+  if (d.loc) await moveTo(d.id, d.loc, null);
+});
+
+document.addEventListener('input', e => {
+  const nm = e.target.closest('.nm');
+  if (nm && App.editMode){
+    const id = +nm.dataset.id;
+    if (App.byId.has(id)){
+      App.byId.get(id).name = nm.innerText.replace(/\n/g, '');
+    }
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!st) return;
+  const nm = e.target.closest('.nm');
+  if (nm && (nm.closest('#sheet') || nm.closest('#unList'))){
+    const id = +nm.dataset.id;
+    App.picked = App.picked === id ? null : id; renderSide(); refreshHighlights();
+    return;
+  }
+  const li = e.target.closest('#sibList li[data-g]');
+  if (li){
+    App.hlKey = App.hlKey === li.dataset.g ? null : li.dataset.g;
+    renderSide(); refreshHighlights(); scrollToFirstHit();
+  }
+});
+
+$('shiftTbl').addEventListener('click', e => {
+  const td = e.target.closest('td.slot'); if (!td) return;
+  shiftBase = +td.dataset.k; drawShiftTable();
+});
+$('shiftStop').onchange = () => { if (shiftBase != null) drawShiftTable(); };
+$('shiftNo').onclick = closeShift; $('shiftYes').onclick = execShift;
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    if (dlgDone){ dlgDone(false); return; }
+    if ($('shiftDlg').classList.contains('show')){ closeShift(); return; }
+    if ($('styleDlg').classList.contains('show')){ $('styleDlg').classList.remove('show'); return; }
+    return;
+  }
+  if (e.key === 'Enter' && dlgDone && !e.target.closest('button')){ e.preventDefault(); $('dlgYes').click(); return; }
+  if (e.target.closest('input,textarea,select,[contenteditable]') || !st) return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); }
+  else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))){ e.preventDefault(); redo(); }
+});
+
+let fdepth = 0;
+const hasFiles = e => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+window.addEventListener('dragenter', e => { if (hasFiles(e)){ fdepth++; $('dropOv').classList.add('show'); } });
+window.addEventListener('dragleave', e => { if (hasFiles(e)){ fdepth = Math.max(0, fdepth - 1); if (!fdepth) $('dropOv').classList.remove('show'); } });
+window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); fdepth = 0; $('dropOv').classList.remove('show');
+  openFile(e.dataTransfer.files[0]);
+});
+
+(function init(){
+  initTexts();
+  const p = store.get('itv.paper'); if (p) $('paper').value = p; applyPaper();
+  const sl = store.get('itv.slot'); if (sl){ App.len = sl.len; App.gap = sl.gap; $('lenIn').value = sl.len; $('gapIn').value = sl.gap; }
+  if (store.get('itv.showNo')){ App.showNo = true; $('chkNo').checked = true; }
+  runDemo();
+})();
+</script>
+</body>
+</html>
